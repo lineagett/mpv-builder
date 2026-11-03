@@ -32,6 +32,7 @@ jobs:
           install: >-
             git make pkgconf python nasm yasm
             mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-libxml2
             mingw-w64-x86_64-meson
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-zlib
@@ -101,6 +102,7 @@ jobs:
             --enable-zlib \
             --enable-bzlib \
             --enable-iconv \
+            --enable-libxml2 \
             --enable-decoder=h264,hevc,vp9,vp8,av1,mpeg4,mpeg2video,mpeg1video,vc1,wmv1,wmv2,wmv3,png,mjpeg,webp,bmp,gif \
             --enable-decoder=aac,aac_latm,mp3,ac3,eac3,flac,opus,vorbis,dca,truehd,alac,mp1,mp2,pcm_s16le,pcm_s16be \
             --enable-decoder=pgssub,dvbsub,dvdsub,webvtt,subrip,ass \
@@ -121,6 +123,7 @@ jobs:
           set -euxo pipefail
           rm -fv /mingw64/lib/libshaderc_shared.dll.a
           rm -fv /mingw64/lib/libspirv-cross-c-shared.dll.a
+          rm -fv /mingw64/lib/libxml2.dll.a
 
           # 自动匹配并注入实际存在的 spirv-cross 静态分卷
           SC_STATIC_LIBS=""
