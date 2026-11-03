@@ -101,13 +101,13 @@ jobs:
             --enable-zlib \
             --enable-bzlib \
             --enable-iconv \
-            --enable-decoder=h264,hevc,vp9,vp8,av1,mpeg4,mpeg2video,png,mjpeg \
+            --enable-decoder=h264,hevc,vp9,vp8,av1,mpeg4,mpeg2video,png,mjpeg,webp,bmp,gif \
             --enable-decoder=aac,aac_latm,mp3,ac3,eac3,flac,opus,vorbis,dca,mp1,mp2,pcm_s16le,pcm_s16be \
             --enable-decoder=pgssub,dvbsub,dvdsub,webvtt,subrip,ass \
             --enable-hwaccel=h264_d3d11va,hevc_d3d11va,vp9_d3d11va,av1_d3d11va,mpeg2video_d3d11va \
             --enable-hwaccel=h264_dxva2,hevc_dxva2,vp9_dxva2,av1_dxva2,mpeg2video_dxva2 \
-            --enable-parser=h264,hevc,vp9,vp8,av1,aac,mpegaudio,mpegvideo,mpeg4video,ac3,dca \
-            --enable-demuxer=mov,matroska,flv,mpegts,mpegtsraw,mpegps,mp3,aac,hls,dash,image2,png_pipe,rawvideo,concat \
+            --enable-parser=h264,hevc,vp9,vp8,av1,aac,mpegaudio,mpegvideo,mpeg4video,ac3,dca,mjpeg,bmp \
+            --enable-demuxer=mov,matroska,flv,mpegts,mpegtsraw,mpegps,mp3,aac,hls,dash,image2,png_pipe,image_jpeg_pipe,image_webp_pipe,image_bmp_pipe,webp,rawvideo,concat \
             --enable-bsf=extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,av1_metadata,aac_adtstoasc \
             --enable-protocol=file,http,https,tcp,tls,crypto,pipe,rtmp,rtmpe,rtmps,rtmpt,rtmpte,data,subfile,concat,hls \
             --extra-libs="-lcrypt32 -lws2_32"
@@ -122,7 +122,7 @@ jobs:
           rm -fv /mingw64/lib/libshaderc_shared.dll.a
           rm -fv /mingw64/lib/libspirv-cross-c-shared.dll.a
 
-          # 自动扫描并引入实际存在的 spirv-cross 静态分卷
+          # 自动匹配并注入实际存在的 spirv-cross 静态分卷
           SC_STATIC_LIBS=""
           for f in /mingw64/lib/libspirv-cross-*.a; do
             if [ -f "$f" ]; then
@@ -132,7 +132,7 @@ jobs:
           done
           printf "prefix=/mingw64\nexec_prefix=\${prefix}\nlibdir=\${exec_prefix}/lib\nincludedir=\${prefix}/include/spirv_cross\n\nName: spirv-cross-c-shared\nDescription: Static SPIRV-Cross\nVersion: 0.64.0\nLibs: -L\${libdir} -Wl,--start-group %s -Wl,--end-group -lstdc++\nCflags: -I\${includedir}\n" "$SC_STATIC_LIBS" > /mingw64/lib/pkgconfig/spirv-cross-c-shared.pc
 
-          # 自动扫描并引入实际存在的 glslang 与 SPIRV-Tools 静态分卷
+          # 自动匹配并注入实际存在的 glslang 与 SPIRV-Tools 静态分卷
           EXTRA_SH_LIBS=""
           for f in /mingw64/lib/libglslang*.a /mingw64/lib/libSPIRV*.a /mingw64/lib/libMachineIndependent*.a /mingw64/lib/libGenericCodeGen*.a; do
             if [ -f "$f" ]; then
