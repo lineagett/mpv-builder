@@ -1,0 +1,252 @@
+name: Build Single libmpv-2.dll (Windows x64)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mpv_ref:
+        description: "mpv tag/branch (default: v0.41.0)"
+        required: true
+        default: "v0.41.0"
+        type: string
+      ffmpeg_ref:
+        description: "FFmpeg tag/branch (default: n7.1)"
+        required: true
+        default: "n7.1"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Setup MSYS2 MINGW64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          suppress-deprecation-warnings: msystem-mingw64
+          install: >-
+            git make pkgconf python nasm yasm
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-bzip2
+            mingw-w64-x86_64-libiconv
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-libpng
+            mingw-w64-x86_64-harfbuzz
+            mingw-w64-x86_64-fribidi
+            mingw-w64-x86_64-fontconfig
+            mingw-w64-x86_64-libass
+            mingw-w64-x86_64-uchardet
+            mingw-w64-x86_64-lua51
+            mingw-w64-x86_64-libplacebo
+            mingw-w64-x86_64-shaderc
+            mingw-w64-x86_64-spirv-cross
+            mingw-w64-x86_64-glslang
+            mingw-w64-x86_64-spirv-tools
+
+      - name: Show toolchain versions
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          gcc --version
+          g++ --version
+          python --version
+          meson --version
+          ninja --version
+          pkg-config --version
+
+      - name: Checkout FFmpeg and mpv
+        shell: msys2 {0}
+        env:
+          MPV_REF: ${{ inputs.mpv_ref }}
+          FFMPEG_REF: ${{ inputs.ffmpeg_ref }}
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 --branch "$FFMPEG_REF" https://github.com/FFmpeg/FFmpeg.git ffmpeg
+          git clone --depth 1 --branch "$MPV_REF" https://github.com/mpv-player/mpv.git mpv
+
+      - name: Build minimal static FFmpeg
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          cd ffmpeg
+
+          ./configure \
+            --prefix=/mingw64 \
+            --enable-static \
+            --disable-shared \
+            --enable-pic \
+            --enable-small \
+            --disable-debug \
+            --disable-doc \
+            --disable-programs \
+            --disable-autodetect \
+            --disable-everything \
+            --enable-avutil \
+            --enable-avcodec \
+            --enable-avformat \
+            --enable-avfilter \
+            --enable-swscale \
+            --enable-swresample \
+            --enable-network \
+            --enable-openssl \
+            --enable-zlib \
+            --enable-bzlib \
+            --enable-iconv \
+            --enable-decoder=h264,hevc,vp9,vp8,av1,mpeg4,mpeg2video,png,mjpeg \
+            --enable-decoder=aac,aac_latm,mp3,ac3,eac3,flac,opus,vorbis,dca,mp1,mp2,pcm_s16le,pcm_s16be \
+            --enable-decoder=pgssub,dvbsub,dvdsub,webvtt,subrip,ass \
+            --enable-hwaccel=h264_d3d11va,hevc_d3d11va,vp9_d3d11va,av1_d3d11va,mpeg2video_d3d11va \
+            --enable-hwaccel=h264_dxva2,hevc_dxva2,vp9_dxva2,av1_dxva2,mpeg2video_dxva2 \
+            --enable-parser=h264,hevc,vp9,vp8,av1,aac,mpegaudio,mpegvideo,mpeg4video,ac3,dca \
+            --enable-demuxer=mov,matroska,flv,mpegts,mpegtsraw,mpegps,mp3,aac,hls,dash,image2,png_pipe,rawvideo,concat \
+            --enable-bsf=extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,av1_metadata,aac_adtstoasc \
+            --enable-protocol=file,http,https,tcp,tls,crypto,pipe,rtmp,rtmpe,rtmps,rtmpt,rtmpte,data,subfile,concat,hls \
+            --extra-libs="-lcrypt32 -lws2_32"
+
+          make -j"$(nproc)"
+          make install
+
+      - name: Force static linking for shaderc and spirv-cross
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          rm -fv /mingw64/lib/libshaderc_shared.dll.a
+          rm -fv /mingw64/lib/libspirv-cross-c-shared.dll.a
+
+          # 自动扫描并引入实际存在的 spirv-cross 静态分卷
+          SC_STATIC_LIBS=""
+          for f in /mingw64/lib/libspirv-cross-*.a; do
+            if [ -f "$f" ]; then
+              libname=$(basename "$f" .a | sed 's/^lib/-l/')
+              SC_STATIC_LIBS="$SC_STATIC_LIBS $libname"
+            fi
+          done
+          printf "prefix=/mingw64\nexec_prefix=\${prefix}\nlibdir=\${exec_prefix}/lib\nincludedir=\${prefix}/include/spirv_cross\n\nName: spirv-cross-c-shared\nDescription: Static SPIRV-Cross\nVersion: 0.64.0\nLibs: -L\${libdir} -Wl,--start-group %s -Wl,--end-group -lstdc++\nCflags: -I\${includedir}\n" "$SC_STATIC_LIBS" > /mingw64/lib/pkgconfig/spirv-cross-c-shared.pc
+
+          # 自动扫描并引入实际存在的 glslang 与 SPIRV-Tools 静态分卷
+          EXTRA_SH_LIBS=""
+          for f in /mingw64/lib/libglslang*.a /mingw64/lib/libSPIRV*.a /mingw64/lib/libMachineIndependent*.a /mingw64/lib/libGenericCodeGen*.a; do
+            if [ -f "$f" ]; then
+              libname=$(basename "$f" .a | sed 's/^lib/-l/')
+              EXTRA_SH_LIBS="$EXTRA_SH_LIBS $libname"
+            fi
+          done
+          printf "prefix=/mingw64\nexec_prefix=\${prefix}\nlibdir=\${exec_prefix}/lib\nincludedir=\${prefix}/include\n\nName: shaderc\nDescription: Static shaderc\nVersion: 2024.1\nLibs: -L\${libdir} -Wl,--start-group -lshaderc_combined %s -Wl,--end-group -lstdc++\nCflags: -I\${includedir}\n" "$EXTRA_SH_LIBS" > /mingw64/lib/pkgconfig/shaderc.pc
+
+      - name: Check mpv dependencies
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          pkg-config --atleast-version=7.360.1 libplacebo
+          pkg-config --exists libass shaderc spirv-cross-c-shared uchardet lua5.1
+
+      - name: Configure and build shared libmpv with static dependencies
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          cd mpv
+          export CC=gcc
+          export CXX=g++
+          export PKG_CONFIG=/mingw64/bin/pkg-config
+          export CFLAGS="-O2"
+          export CXXFLAGS="-O2"
+          export LDFLAGS="-static-libgcc -static-libstdc++ -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic -lcrypt32 -lws2_32"
+
+          meson setup build \
+            --buildtype=release \
+            --strip \
+            -Dlibmpv=true \
+            -Dcplayer=false \
+            -Ddefault_library=shared \
+            -Dprefer_static=true \
+            -Dbuild-date=false \
+            -Dtests=false \
+            -Dmanpage-build=disabled \
+            -Dlua=lua5.1 \
+            -Djavascript=disabled \
+            -Diconv=enabled \
+            -Duchardet=enabled \
+            -Drubberband=disabled \
+            -Dlibarchive=disabled \
+            -Dwasapi=enabled \
+            -Dd3d11=enabled \
+            -Dd3d-hwaccel=enabled \
+            -Dd3d9-hwaccel=enabled \
+            -Dshaderc=enabled \
+            -Dspirv-cross=enabled \
+            -Dvulkan=disabled \
+            -Dgl=disabled \
+            -Degl=disabled \
+            -Dplain-gl=disabled
+
+          meson configure build
+          ninja -C build libmpv-2.dll 2>&1 | tee ../mpv-build.log
+
+      - name: Verify single-DLL result
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          DLL="mpv/build/libmpv-2.dll"
+          test -s "$DLL"
+          objdump -f "$DLL" | grep -q "pei-x86-64"
+
+          objdump -p "$DLL" | tee exports.txt
+          grep -q "mpv_create" exports.txt
+          grep -q "mpv_initialize" exports.txt
+          grep -q "mpv_command" exports.txt
+
+          objdump -p "$DLL" | awk '/DLL Name:/ {print $3}' | sort -fu | tee dll-dependencies.txt
+
+          bad=0
+          while IFS= read -r dep; do
+            dep_lc="$(printf '%s' "$dep" | tr '[:upper:]' '[:lower:]')"
+            case "$dep_lc" in
+              kernel32.dll|kernelbase.dll|ntdll.dll|user32.dll|gdi32.dll|gdi32full.dll|win32u.dll|shell32.dll|shlwapi.dll|ole32.dll|oleaut32.dll|combase.dll|advapi32.dll|rpcrt4.dll|secur32.dll|crypt32.dll|bcrypt.dll|bcryptprimitives.dll|ws2_32.dll|winmm.dll|version.dll|imm32.dll|setupapi.dll|cfgmgr32.dll|dwmapi.dll|uxtheme.dll|dwrite.dll|d2d1.dll|dxgi.dll|d3d11.dll|d3d12.dll|d3dcompiler_47.dll|wintrust.dll|normaliz.dll|iphlpapi.dll|dnsapi.dll|dbghelp.dll|psapi.dll|shcore.dll|comdlg32.dll|comctl32.dll|winspool.drv|msvcrt.dll|ucrtbase.dll|avrt.dll|mmdevapi.dll|ksuser.dll|ksproxy.ax|oleacc.dll|windowscodecs.dll|propsys.dll|powrprof.dll|userenv.dll|wininet.dll|netapi32.dll|usp10.dll|api-ms-win-*.dll|ext-ms-win-*.dll)
+                ;;
+              *)
+                echo "::error::Unexpected non-system DLL dependency: $dep"
+                bad=1
+                ;;
+            esac
+          done < dll-dependencies.txt
+
+          if [ "$bad" -ne 0 ]; then
+            echo "::error::libmpv is not self-contained. Inspect dll-dependencies.txt and the link log."
+            exit 1
+          fi
+
+          mkdir -p single-build
+          strip --strip-unneeded "$DLL"
+          cp "$DLL" single-build/libmpv-2.dll
+          sha256sum single-build/libmpv-2.dll | tee single-build/SHA256SUMS.txt
+
+      - name: Upload libmpv artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-2-single-x64
+          path: single-build/libmpv-2.dll
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-build-diagnostics
+          path: |
+            ffmpeg/ffbuild/config.log
+            mpv/build/meson-logs/
+            mpv-build.log
+            dll-dependencies.txt
+            exports.txt
+          if-no-files-found: ignore
+          retention-days: 7
