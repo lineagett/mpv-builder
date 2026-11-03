@@ -9,7 +9,7 @@ on:
         default: "v0.41.0"
         type: string
       ffmpeg_ref:
-        description: "FFmpeg tag/branch (default: n7.1)"
+        description: "FFmpeg tag/branch (default: n7.1.5)"
         required: true
         default: "n7.1.5"
         type: string
@@ -101,13 +101,13 @@ jobs:
             --enable-zlib \
             --enable-bzlib \
             --enable-iconv \
-            --enable-decoder=h264,hevc,vp9,vp8,av1,mpeg4,mpeg2video,png,mjpeg,webp,bmp,gif \
-            --enable-decoder=aac,aac_latm,mp3,ac3,eac3,flac,opus,vorbis,dca,mp1,mp2,pcm_s16le,pcm_s16be \
+            --enable-decoder=h264,hevc,vp9,vp8,av1,mpeg4,mpeg2video,mpeg1video,vc1,wmv1,wmv2,wmv3,png,mjpeg,webp,bmp,gif \
+            --enable-decoder=aac,aac_latm,mp3,ac3,eac3,flac,opus,vorbis,dca,truehd,alac,mp1,mp2,pcm_s16le,pcm_s16be \
             --enable-decoder=pgssub,dvbsub,dvdsub,webvtt,subrip,ass \
             --enable-hwaccel=h264_d3d11va,hevc_d3d11va,vp9_d3d11va,av1_d3d11va,mpeg2video_d3d11va \
             --enable-hwaccel=h264_dxva2,hevc_dxva2,vp9_dxva2,av1_dxva2,mpeg2video_dxva2 \
             --enable-parser=h264,hevc,vp9,vp8,av1,aac,mpegaudio,mpegvideo,mpeg4video,ac3,dca,mjpeg,bmp \
-            --enable-demuxer=mov,matroska,flv,mpegts,mpegtsraw,mpegps,mp3,aac,hls,dash,image2,png_pipe,image_jpeg_pipe,image_webp_pipe,image_bmp_pipe,webp,rawvideo,concat \
+            --enable-demuxer=mov,matroska,flv,mpegts,mpegtsraw,mpegps,mp3,aac,flac,wav,ogg,avi,asf,rm,wtv,hls,dash,image2,png_pipe,image_jpeg_pipe,image_webp_pipe,image_bmp_pipe,webp,rawvideo,concat \
             --enable-bsf=extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,av1_metadata,aac_adtstoasc \
             --enable-protocol=file,http,https,tcp,tls,crypto,pipe,rtmp,rtmpe,rtmps,rtmpt,rtmpte,data,subfile,concat,hls \
             --extra-libs="-lcrypt32 -lws2_32"
