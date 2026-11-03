@@ -78,6 +78,9 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euxo pipefail
+          # MSYS2 的 libxml-2.0.pc 默认按 dllimport 编译引用 (产生 __imp_xml* 符号);
+          # dashdec.c 必须以 LIBXML_STATIC 编译, 才能链接 libxml2.a 静态库
+          sed -i '/^Cflags:/ s/$/ -DLIBXML_STATIC/' /mingw64/lib/pkgconfig/libxml-2.0.pc
           cd ffmpeg
 
           ./configure \
