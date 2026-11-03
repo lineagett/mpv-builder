@@ -114,7 +114,7 @@ jobs:
             --enable-parser=h264,hevc,vp9,vp8,av1,aac,mpegaudio,mpegvideo,mpeg4video,ac3,dca,mjpeg,bmp \
             --enable-demuxer=mov,matroska,flv,mpegts,mpegtsraw,mpegps,mp3,aac,flac,wav,ogg,avi,asf,rm,wtv,hls,dash,image2,png_pipe,image_jpeg_pipe,image_webp_pipe,image_bmp_pipe,webp,rawvideo,concat \
             --enable-bsf=extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,av1_metadata,aac_adtstoasc \
-            --enable-protocol=file,http,https,tcp,tls,crypto,pipe,rtmp,rtmpe,rtmps,rtmpt,rtmpte,data,subfile,concat,hls \
+            --enable-protocol=file,http,https,tcp,tls,crypto,pipe,rtmp,rtmpe,rtmps,rtmpt,rtmpte,data,subfile,concat,hls,udp \
             --extra-libs="-lcrypt32 -lws2_32"
 
           make -j"$(nproc)"
