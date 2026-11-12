@@ -178,7 +178,6 @@ jobs:
             -Dbuild-date=false \
             -Dtests=false \
             -Dmanpage-build=disabled \
-            -Dlibass=enabled \
             -Dlua=lua5.1 \
             -Djavascript=disabled \
             -Diconv=enabled \
