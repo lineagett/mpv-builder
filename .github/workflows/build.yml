@@ -9,9 +9,9 @@ on:
         default: "v0.41.0"
         type: string
       ffmpeg_ref:
-        description: "FFmpeg tag/branch (default: n7.1.5)"
+        description: "FFmpeg tag/branch (default: n8.1)"
         required: true
-        default: "n7.1.5"
+        default: "n8.1"
         type: string
 
 permissions:
@@ -108,11 +108,13 @@ jobs:
             --enable-libxml2 \
             --enable-decoder=h264,hevc,vp9,vp8,av1,mpeg4,mpeg2video,mpeg1video,vc1,wmv1,wmv2,wmv3,png,mjpeg,webp,bmp,gif \
             --enable-decoder=aac,aac_latm,mp3,ac3,eac3,flac,opus,vorbis,dca,truehd,alac,mp1,mp2,pcm_s16le,pcm_s16be \
-            --enable-decoder=pgssub,dvbsub,dvdsub,webvtt,subrip,ass \
+            --enable-decoder=pgssub,dvbsub,dvdsub,webvtt,subrip,ass,ssa,text,mov_text \
+            --enable-decoder=microdvd,mpl2,subviewer,subviewer1,jacosub,realtext,sami,stl,vplayer,pjs \
             --enable-hwaccel=h264_d3d11va,hevc_d3d11va,vp9_d3d11va,av1_d3d11va,mpeg2video_d3d11va \
             --enable-hwaccel=h264_dxva2,hevc_dxva2,vp9_dxva2,av1_dxva2,mpeg2video_dxva2 \
             --enable-parser=h264,hevc,vp9,vp8,av1,aac,mpegaudio,mpegvideo,mpeg4video,ac3,dca,mjpeg,bmp \
             --enable-demuxer=mov,matroska,flv,mpegts,mpegtsraw,mpegps,mp3,aac,flac,wav,ogg,avi,asf,rm,wtv,hls,dash,image2,png_pipe,image_jpeg_pipe,image_webp_pipe,image_bmp_pipe,webp,rawvideo,concat \
+            --enable-demuxer=srt,ass,webvtt,microdvd,mpl2,subviewer,subviewer1,jacosub,realtext,sami,stl,vplayer,pjs,lrc \
             --enable-bsf=extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,av1_metadata,aac_adtstoasc \
             --enable-protocol=file,http,https,tcp,tls,crypto,pipe,rtmp,rtmpe,rtmps,rtmpt,rtmpte,data,subfile,concat,hls,udp \
             --extra-libs="-lcrypt32 -lws2_32"
@@ -179,6 +181,7 @@ jobs:
             -Dmanpage-build=disabled \
             -Dlua=lua5.1 \
             -Djavascript=disabled \
+            -Dlibass=enabled \
             -Diconv=enabled \
             -Duchardet=enabled \
             -Drubberband=disabled \
@@ -211,6 +214,12 @@ jobs:
           grep -q "mpv_command" exports.txt
 
           objdump -p "$DLL" | awk '/DLL Name:/ {print $3}' | sort -fu | tee dll-dependencies.txt
+
+          for item in SRT_DEMUXER ASS_DEMUXER WEBVTT_DEMUXER MICRODVD_DEMUXER \
+                      SUBRIP_DECODER ASS_DECODER WEBVTT_DECODER MOV_TEXT_DECODER; do
+            grep -q "CONFIG_${item}=yes" ffmpeg/ffbuild/config.mak \
+              || { echo "::error::FFmpeg 缺少外挂字幕组件: ${item}"; exit 1; }
+          done
 
           bad=0
           while IFS= read -r dep; do
